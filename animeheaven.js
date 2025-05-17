@@ -2,31 +2,65 @@ const BASE_URL = "https://animeheaven.me";
 
 async function search(query) {
   try {
-    const response = await fetch(`${BASE_URL}/search.php?s=${encodeURIComponent(query)}`, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36"
-      }
-    });
+    // Format query to match URL structure (e.g., "One piece" -> "one-piece")
+    const formattedQuery = query.toLowerCase().replace(/\s+/g, "-");
+    const searchUrl = `${BASE_URL}/search/${formattedQuery}`;
+    
+    // Add more headers to mimic browser
+    const headers = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36",
+      "Referer": BASE_URL,
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
+    };
+
+    // Initial fetch to get the page
+    const response = await fetch(searchUrl, { headers });
     const html = await response.text();
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, "text/html");
 
-    const results = [];
+    let results = [];
     const items = doc.querySelectorAll(".vid-box");
-    for (const item of items) {
-      const title = item.querySelector("h3")?.textContent.trim();
-      const link = item.querySelector("a")?.href;
-      const id = link?.split("/anime/")[1];
-      const image = item.querySelector("img")?.src;
-      if (title && id) {
-        results.push({
-          title: title,
-          id: id,
-          image: image || "",
-          type: "ANIME"
-        });
+
+    // If no results found in initial HTML, try evaluateJS for dynamic content
+    if (items.length === 0) {
+      const dynamicResults = await evaluateJS(searchUrl, `
+        const items = Array.from(document.querySelectorAll('.vid-box'));
+        return items.map(item => ({
+          title: item.querySelector('h3')?.textContent.trim(),
+          link: item.querySelector('a')?.href,
+          image: item.querySelector('img')?.src
+        }));
+      `, { headers });
+
+      if (dynamicResults && dynamicResults.length > 0) {
+        results = dynamicResults
+          .filter(item => item.title && item.link)
+          .map(item => ({
+            title: item.title,
+            id: item.link.split("/anime/")[1],
+            image: item.image || "",
+            type: "ANIME"
+          }));
+      }
+    } else {
+      // Parse results from initial HTML
+      for (const item of items) {
+        const title = item.querySelector("h3")?.textContent.trim();
+        const link = item.querySelector("a")?.href;
+        const id = link?.split("/anime/")[1];
+        const image = item.querySelector("img")?.src;
+        if (title && id) {
+          results.push({
+            title: title,
+            id: id,
+            image: image || "",
+            type: "ANIME"
+          });
+        }
       }
     }
+
     return results;
   } catch (error) {
     console.error("Search error:", error);
