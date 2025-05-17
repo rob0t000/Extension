@@ -4,7 +4,7 @@
   "description": "A module to scrape anime from AnimeHeaven.me",
   "types": ["ANIME"],
   "icon": "https://animeheaven.me/favicon.ico",
-  "script": https://raw.githubusercontent.com/rob0t000/Extension/refs/heads/main/animeheaven.js",
+  "script": "https://raw.githubusercontent.com/rob0t000/Extension/refs/heads/main/animeheaven.js",
   "disabled": false,
   "lastUpdate": "2025-05-17"
 }
