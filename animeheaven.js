@@ -1,11 +1,24 @@
 const BASE_URL = "https://animeheaven.me";
 
+// Custom fetch function from the sample script
+async function soraFetch(url, options = { headers: {}, method: 'GET', body: null }) {
+  try {
+    return await fetchv2(url, options.headers ?? {}, options.method ?? 'GET', options.body ?? null);
+  } catch (e) {
+    try {
+      return await fetch(url, options);
+    } catch (error) {
+      return null;
+    }
+  }
+}
+
 async function search(query) {
   try {
     // Encode the query for the URL (e.g., "One piece" -> "one+piece")
     const encodedQuery = encodeURIComponent(query.replace(/\s+/g, "+"));
     const searchUrl = `${BASE_URL}/search.php?s=${encodedQuery}`;
-    
+
     // Headers to mimic browser
     const headers = {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36",
@@ -15,40 +28,53 @@ async function search(query) {
     };
 
     // Fetch the search page HTML
-    const response = await fetch(searchUrl, { headers });
-    if (!response.ok) {
-      throw new Error(`Fetch failed with status: ${response.status}`);
+    const response = await soraFetch(searchUrl, { headers });
+    if (!response || !response.ok) {
+      throw new Error(`Fetch failed with status: ${response?.status || 'unknown'}`);
     }
     const html = await response.text();
-    
+
     // Ensure html is a string
     if (typeof html !== "string") {
       throw new Error("Fetched HTML is not a string");
     }
 
-    // Use regex to find all <div class="vid-box"> blocks
-    const vidBoxRegex = /<div class="vid-box">[\s\S]*?<\/div>/g;
-    const vidBoxes = html.match(vidBoxRegex) || [];
-
+    // Manually extract <div class="vid-box"> blocks without regex flags
     const results = [];
-    for (const vidBox of vidBoxes) {
-      // Ensure vidBox is a string
-      if (typeof vidBox !== "string") continue;
+    let currentIndex = 0;
+    const blockStart = '<div class="vid-box">';
+    const blockEnd = '</div>';
+
+    while (true) {
+      // Find the next <div class="vid-box">
+      const startIndex = html.indexOf(blockStart, currentIndex);
+      if (startIndex === -1) break; // No more blocks
+
+      // Find the end of the block
+      const endIndex = html.indexOf(blockEnd, startIndex + blockStart.length);
+      if (endIndex === -1) break; // Malformed HTML
+
+      // Extract the block
+      const vidBox = html.substring(startIndex, endIndex + blockEnd.length);
+      currentIndex = endIndex + blockEnd.length;
 
       // Extract title
-      const titleRegex = /<h3>([\s\S]*?)</h3>/;
-      const titleMatch = vidBox.match(titleRegex);
-      const title = titleMatch ? titleMatch[1].trim() : null;
+      const titleStart = vidBox.indexOf('<h3>');
+      const titleEnd = vidBox.indexOf('</h3>', titleStart);
+      let title = null;
+      if (titleStart !== -1 && titleEnd !== -1) {
+        title = vidBox.substring(titleStart + 4, titleEnd).trim();
+      }
 
       // Extract link and ID
-      const linkRegex = /<a href="\/anime\/(.*?)"/;
+      const linkRegex = new RegExp('<a href="/anime/([^"]*)"');
       const linkMatch = vidBox.match(linkRegex);
       const id = linkMatch ? linkMatch[1] : null;
 
       // Extract image
-      const imageRegex = /<img src="([\s\S]*?)"(?: alt="[\s\S]*?")?>/;
+      const imageRegex = new RegExp('<img src="([^"]*)"(?: alt="[^"]*")?>');
       const imageMatch = vidBox.match(imageRegex);
-      const image = imageMatch ? imageMatch[1] : "";
+      let image = imageMatch ? imageMatch[1] : "";
 
       // If title and id are present, add to results
       if (title && id) {
@@ -72,11 +98,14 @@ async function search(query) {
 
 async function getMediaInfo(id) {
   try {
-    const response = await fetch(`${BASE_URL}/anime/${id}`, {
+    const response = await soraFetch(`${BASE_URL}/anime/${id}`, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36"
       }
     });
+    if (!response || !response.ok) {
+      throw new Error(`Fetch failed with status: ${response?.status || 'unknown'}`);
+    }
     const html = await response.text();
 
     // Ensure html is a string
@@ -84,39 +113,53 @@ async function getMediaInfo(id) {
       throw new Error("Fetched HTML is not a string");
     }
 
-    // Use regex to extract media info
-    const titleRegex = /<h1>([\s\S]*?)</h1>/;
-    const imageRegex = /<img class="anime-poster" src="([\s\S]*?)"/;
-    const descRegex = /<div class="anime-desc">([\s\S]*?)</div>/;
-    const genresRegex = /<div class="gen">[\s\S]*?<\/div>/;
-    const episodeRegex = /<ul class="epi">[\s\S]*?<\/ul>/;
+    // Extract title
+    const titleStart = html.indexOf('<h1>');
+    const titleEnd = html.indexOf('</h1>', titleStart);
+    const title = titleStart !== -1 && titleEnd !== -1 ? html.substring(titleStart + 4, titleEnd).trim() : "";
 
-    const titleMatch = html.match(titleRegex);
+    // Extract image
+    const imageRegex = new RegExp('<img class="anime-poster" src="([^"]*)"');
     const imageMatch = html.match(imageRegex);
-    const descMatch = html.match(descRegex);
-    const genresMatch = html.match(genresRegex);
-    const episodeMatch = html.match(episodeRegex);
-
-    const title = titleMatch ? titleMatch[1].trim() : "";
     const image = imageMatch ? (imageMatch[1].startsWith("http") ? imageMatch[1] : `${BASE_URL}${imageMatch[1]}`) : "";
-    const description = descMatch ? descMatch[1].trim() : "";
+
+    // Extract description
+    const descStart = html.indexOf('<div class="anime-desc">');
+    const descEnd = html.indexOf('</div>', descStart);
+    const description = descStart !== -1 && descEnd !== -1 ? html.substring(descStart + 23, descEnd).trim() : "";
 
     // Extract genres
     const genres = [];
-    if (genresMatch && typeof genresMatch[0] === "string") {
-      const genreLinkRegex = /<a[\s\S]*?>([\s\S]*?)</g;
-      const genreMatches = genresMatch[0].matchAll(genreLinkRegex);
-      for (const match of genreMatches) {
-        if (match[1]) genres.push(match[1].trim());
+    const genresBlockStart = html.indexOf('<div class="gen">');
+    const genresBlockEnd = html.indexOf('</div>', genresBlockStart);
+    if (genresBlockStart !== -1 && genresBlockEnd !== -1) {
+      const genresBlock = html.substring(genresBlockStart, genresBlockEnd);
+      let genreIndex = 0;
+      while (true) {
+        const genreStart = genresBlock.indexOf('<a', genreIndex);
+        if (genreStart === -1) break;
+        const genreTextStart = genresBlock.indexOf('>', genreStart) + 1;
+        const genreTextEnd = genresBlock.indexOf('</a>', genreTextStart);
+        if (genreTextStart === -1 || genreTextEnd === -1) break;
+        const genre = genresBlock.substring(genreTextStart, genreTextEnd).trim();
+        if (genre) genres.push(genre);
+        genreIndex = genreTextEnd;
       }
     }
 
     // Count episodes
     let totalEpisodes = 0;
-    if (episodeMatch && typeof episodeMatch[0] === "string") {
-      const episodeItemRegex = /<li>/g;
-      const episodeItems = episodeMatch[0].match(episodeItemRegex);
-      totalEpisodes = episodeItems ? episodeItems.length : 0;
+    const episodeBlockStart = html.indexOf('<ul class="epi">');
+    const episodeBlockEnd = html.indexOf('</ul>', episodeBlockStart);
+    if (episodeBlockStart !== -1 && episodeBlockEnd !== -1) {
+      const episodeBlock = html.substring(episodeBlockStart, episodeBlockEnd);
+      let liIndex = 0;
+      while (true) {
+        const liStart = episodeBlock.indexOf('<li>', liIndex);
+        if (liStart === -1) break;
+        totalEpisodes++;
+        liIndex = liStart + 4;
+      }
     }
 
     return {
@@ -136,11 +179,14 @@ async function getMediaInfo(id) {
 
 async function getEpisodeList(id, options = {}) {
   try {
-    const response = await fetch(`${BASE_URL}/anime/${id}`, {
+    const response = await soraFetch(`${BASE_URL}/anime/${id}`, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36"
       }
     });
+    if (!response || !response.ok) {
+      throw new Error(`Fetch failed with status: ${response?.status || 'unknown'}`);
+    }
     const html = await response.text();
 
     // Ensure html is a string
@@ -148,26 +194,32 @@ async function getEpisodeList(id, options = {}) {
       throw new Error("Fetched HTML is not a string");
     }
 
-    // Use regex to extract episode list
-    const episodeListRegex = /<ul class="epi">[\s\S]*?<li>[\s\S]*?<\/ul>/;
-    const episodeItemRegex = /<li>[\s\S]*?<\/li>/g;
-    const linkRegex = /<a href="[\s\S]*?\/(\d+)"/;
-    const titleRegex = /<span class="title">([\s\S]*?)</;
-
-    const episodeListMatch = html.match(episodeListRegex);
-    if (!episodeListMatch || typeof episodeListMatch[0] !== "string") return [];
-
-    const episodeItems = episodeListMatch[0].match(episodeItemRegex) || [];
     const episodes = [];
+    const episodeBlockStart = html.indexOf('<ul class="epi">');
+    const episodeBlockEnd = html.indexOf('</ul>', episodeBlockStart);
+    if (episodeBlockStart === -1 || episodeBlockEnd === -1) return [];
 
-    for (const item of episodeItems) {
-      if (typeof item !== "string") continue;
+    const episodeBlock = html.substring(episodeBlockStart, episodeBlockEnd);
+    let currentIndex = 0;
 
+    while (true) {
+      const liStart = episodeBlock.indexOf('<li>', currentIndex);
+      if (liStart === -1) break;
+      const liEnd = episodeBlock.indexOf('</li>', liStart);
+      if (liEnd === -1) break;
+
+      const item = episodeBlock.substring(liStart, liEnd + 5);
+      currentIndex = liEnd + 5;
+
+      // Extract link and episode number
+      const linkRegex = new RegExp('<a href="[^"]*/(\\d+)"');
       const linkMatch = item.match(linkRegex);
-      const titleMatch = item.match(titleRegex);
-
       const epNumber = linkMatch ? linkMatch[1] : null;
-      const title = titleMatch ? titleMatch[1].trim() : `Episode ${epNumber}`;
+
+      // Extract title
+      const titleStart = item.indexOf('<span class="title">');
+      const titleEnd = item.indexOf('</span>', titleStart);
+      const title = titleStart !== -1 && titleEnd !== -1 ? item.substring(titleStart + 19, titleEnd).trim() : `Episode ${epNumber}`;
 
       if (epNumber) {
         episodes.push({
@@ -195,7 +247,10 @@ async function getSource(episodeId) {
       "Origin": BASE_URL
     };
 
-    const response = await fetch(episodeUrl, { headers });
+    const response = await soraFetch(episodeUrl, { headers });
+    if (!response || !response.ok) {
+      throw new Error(`Fetch failed with status: ${response?.status || 'unknown'}`);
+    }
     const html = await response.text();
 
     // Ensure html is a string
@@ -203,13 +258,20 @@ async function getSource(episodeId) {
       throw new Error("Fetched HTML is not a string");
     }
 
-    // Use regex to extract video sources
     let sources = [];
-    const iframeRegex = /<div class="vid-player">[\s\S]*?<iframe src="([\s\S]*?)"/g;
-    const iframeMatches = html.matchAll(iframeRegex);
+    let currentIndex = 0;
+    const iframeBlockStartTag = '<div class="vid-player">';
+    const iframeStartTag = '<iframe src="';
 
-    for (const match of iframeMatches) {
-      const src = match[1];
+    while (true) {
+      const blockStart = html.indexOf(iframeBlockStartTag, currentIndex);
+      if (blockStart === -1) break;
+      const iframeStart = html.indexOf(iframeStartTag, blockStart);
+      if (iframeStart === -1) break;
+      const iframeEnd = html.indexOf('"', iframeStart + iframeStartTag.length);
+      if (iframeEnd === -1) break;
+
+      const src = html.substring(iframeStart + iframeStartTag.length, iframeEnd);
       if (src) {
         sources.push({
           url: src,
@@ -217,19 +279,28 @@ async function getSource(episodeId) {
           isM3U8: src.includes(".m3u8")
         });
       }
+      currentIndex = iframeEnd;
     }
 
-    // Extract subtitles
     const subtitles = [];
-    const subtitleRegex = /<track kind="subtitles" src="([\s\S]*?)" srclang="([\s\S]*?)"/g;
-    const subtitleMatches = html.matchAll(subtitleRegex);
+    const subtitleStartTag = '<track kind="subtitles" src="';
+    currentIndex = 0;
 
-    for (const match of subtitleMatches) {
-      const src = match[1];
-      const lang = match[2] || "en";
+    while (true) {
+      const subtitleStart = html.indexOf(subtitleStartTag, currentIndex);
+      if (subtitleStart === -1) break;
+      const srcEnd = html.indexOf('"', subtitleStart + subtitleStartTag.length);
+      if (srcEnd === -1) break;
+      const src = html.substring(subtitleStart + subtitleStartTag.length, srcEnd);
+
+      const langStart = html.indexOf('srclang="', srcEnd) + 9;
+      const langEnd = html.indexOf('"', langStart);
+      const lang = langStart !== -1 && langEnd !== -1 ? html.substring(langStart, langEnd) : "en";
+
       if (src) {
         subtitles.push({ url: src, lang: lang });
       }
+      currentIndex = langEnd || srcEnd;
     }
 
     if (sources.length > 0) {
