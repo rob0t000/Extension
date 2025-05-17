@@ -2,49 +2,55 @@ const BASE_URL = "https://animeheaven.me";
 
 async function search(query) {
   try {
-    // Format query to match URL structure (e.g., "One piece" -> "one-piece")
-    const formattedQuery = query.toLowerCase().replace(/\s+/g, "-");
-    const searchUrl = `${BASE_URL}/search/${formattedQuery}`;
+    // Encode the query for the URL (e.g., "One piece" -> "one+piece")
+    const encodedQuery = encodeURIComponent(query.replace(/\s+/g, "+"));
+    const searchUrl = `${BASE_URL}/search.php?s=${encodedQuery}`;
     
-    // Add more headers to mimic browser
+    // Headers to mimic browser
     const headers = {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36",
       "Referer": BASE_URL,
-      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+      "Accept-Language": "en-US,en;q=0.9"
     };
 
-    // Initial fetch to get the page
-    const response = await fetch(searchUrl, { headers });
-    const html = await response.text();
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, "text/html");
+    // Use evaluateJS to scrape search results
+    const dynamicResults = await evaluateJS(searchUrl, `
+      const items = Array.from(document.querySelectorAll('.vid-box'));
+      return items.map(item => ({
+        title: item.querySelector('h3')?.textContent.trim(),
+        link: item.querySelector('a')?.href,
+        image: item.querySelector('img')?.src
+      }));
+    `, { headers });
 
     let results = [];
-    const items = doc.querySelectorAll(".vid-box");
-
-    // If no results found in initial HTML, try evaluateJS for dynamic content
-    if (items.length === 0) {
-      const dynamicResults = await evaluateJS(searchUrl, `
-        const items = Array.from(document.querySelectorAll('.vid-box'));
-        return items.map(item => ({
-          title: item.querySelector('h3')?.textContent.trim(),
-          link: item.querySelector('a')?.href,
-          image: item.querySelector('img')?.src
-        }));
-      `, { headers });
-
-      if (dynamicResults && dynamicResults.length > 0) {
-        results = dynamicResults
-          .filter(item => item.title && item.link)
-          .map(item => ({
+    if (dynamicResults && dynamicResults.length > 0) {
+      results = dynamicResults
+        .filter(item => item.title && item.link)
+        .map(item => {
+          const id = item.link?.split("/anime/")[1];
+          return {
             title: item.title,
-            id: item.link.split("/anime/")[1],
+            id: id,
             image: item.image || "",
             type: "ANIME"
-          }));
+          };
+        })
+        .filter(item => item.id); // Ensure id is present
+    }
+
+    // Fallback to fetch if evaluateJS fails
+    if (results.length === 0) {
+      const response = await fetch(searchUrl, { headers });
+      if (!response.ok) {
+        throw new Error(`Fetch failed with status: ${response.status}`);
       }
-    } else {
-      // Parse results from initial HTML
+      const html = await response.text();
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+
+      const items = doc.querySelectorAll(".vid-box");
       for (const item of items) {
         const title = item.querySelector("h3")?.textContent.trim();
         const link = item.querySelector("a")?.href;
@@ -63,7 +69,7 @@ async function search(query) {
 
     return results;
   } catch (error) {
-    console.error("Search error:", error);
+    console.error("Search error:", error.message || error);
     return [];
   }
 }
