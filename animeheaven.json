@@ -1,0 +1,10 @@
+{
+  "name": "AnimeHeaven",
+  "version": "1.0.0",
+  "description": "A module to scrape anime from AnimeHeaven.me",
+  "types": ["ANIME"],
+  "icon": "https://animeheaven.me/favicon.ico",
+  "script": "https://raw.githubusercontent.com/YourUsername/YourRepo/main/AnimeHeaven/AnimeHeaven.js",
+  "disabled": false,
+  "lastUpdate": "2025-05-17"
+}
