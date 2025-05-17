@@ -89,7 +89,7 @@ async function getEpisodeList(id, options = {}) {
         });
       }
     }
-    return episodes.reverse(); // Reverse to show episodes in ascending order
+    return episodes.reverse();
   } catch (error) {
     console.error("Episode list error:", error);
     return [];
@@ -99,24 +99,63 @@ async function getEpisodeList(id, options = {}) {
 async function getSource(episodeId) {
   try {
     const [animeId, epNumber] = episodeId.split("/");
-    const response = await fetch(`${BASE_URL}/watch/${animeId}/${epNumber}`, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36"
-      }
-    });
+    const episodeUrl = `${BASE_URL}/watch/${animeId}/${epNumber}`;
+    const headers = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36",
+      "Referer": episodeUrl,
+      "Origin": BASE_URL
+    };
+
+    // Initial fetch to get the episode page
+    const response = await fetch(episodeUrl, { headers });
     const html = await response.text();
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, "text/html");
 
-    const iframe = doc.querySelector(".vid-player iframe");
-    if (iframe?.src) {
-      return {
-        sources: [{ url: iframe.src, quality: "auto", isM3U8: iframe.src.includes(".m3u8") }],
-        subtitles: [],
-        headers: {
-          "Referer": `${BASE_URL}/watch/${animeId}/${epNumber}`,
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36"
+    // Try to find all video servers (if multiple iframes or server options exist)
+    let sources = [];
+    const iframes = doc.querySelectorAll(".vid-player iframe");
+    if (iframes.length > 0) {
+      iframes.forEach((iframe, index) => {
+        const src = iframe.src;
+        if (src) {
+          sources.push({
+            url: src,
+            quality: `Server ${index + 1}`,
+            isM3U8: src.includes(".m3u8")
+          });
         }
+      });
+    } else {
+      // If no iframe found, try using evaluateJS to handle dynamic content
+      const dynamicIframe = await evaluateJS(episodeUrl, `
+        return Array.from(document.querySelectorAll('.vid-player iframe')).map(iframe => iframe.src);
+      `);
+      if (dynamicIframe && dynamicIframe.length > 0) {
+        sources = dynamicIframe.map((src, index) => ({
+          url: src,
+          quality: `Server ${index + 1}`,
+          isM3U8: src.includes(".m3u8")
+        }));
+      }
+    }
+
+    // Scrape subtitles if available
+    const subtitles = [];
+    const subtitleLinks = doc.querySelectorAll("track[kind='subtitles']");
+    subtitleLinks.forEach(track => {
+      const src = track.src;
+      const lang = track.srclang || "en";
+      if (src) {
+        subtitles.push({ url: src, lang: lang });
+      }
+    });
+
+    if (sources.length > 0) {
+      return {
+        sources: sources,
+        subtitles: subtitles,
+        headers: headers
       };
     }
     return { sources: [], subtitles: [], headers: {} };
