@@ -27,26 +27,26 @@ async function search(query) {
     }
 
     // Use regex to find all <div class="vid-box"> blocks
-    const vidBoxRegex = /<div class="vid-box">.*?<\/div>/gs;
+    const vidBoxRegex = /<div class="vid-box">[\s\S]*?<\/div>/g;
     const vidBoxes = html.match(vidBoxRegex) || [];
 
     const results = [];
     for (const vidBox of vidBoxes) {
-      // Ensure vidBox is a string (should always be true, but adding for safety)
+      // Ensure vidBox is a string
       if (typeof vidBox !== "string") continue;
 
       // Extract title
-      const titleRegex = /<h3>(.*?)</h3>/s;
+      const titleRegex = /<h3>([\s\S]*?)</h3>/;
       const titleMatch = vidBox.match(titleRegex);
       const title = titleMatch ? titleMatch[1].trim() : null;
 
       // Extract link and ID
-      const linkRegex = /<a href="\/anime\/(.*?)"/s;
+      const linkRegex = /<a href="\/anime\/(.*?)"/;
       const linkMatch = vidBox.match(linkRegex);
       const id = linkMatch ? linkMatch[1] : null;
 
       // Extract image
-      const imageRegex = /<img src="(.*?)"(?: alt=".*?")?>/s; // Made alt attribute optional
+      const imageRegex = /<img src="([\s\S]*?)"(?: alt="[\s\S]*?")?>/;
       const imageMatch = vidBox.match(imageRegex);
       const image = imageMatch ? imageMatch[1] : "";
 
@@ -85,11 +85,11 @@ async function getMediaInfo(id) {
     }
 
     // Use regex to extract media info
-    const titleRegex = /<h1>(.*?)</h1>/s;
-    const imageRegex = /<img class="anime-poster" src="(.*?)"/s;
-    const descRegex = /<div class="anime-desc">(.*?)</div>/s;
-    const genresRegex = /<div class="gen">.*?<\/div>/s;
-    const episodeRegex = /<ul class="epi">.*?<\/ul>/s;
+    const titleRegex = /<h1>([\s\S]*?)</h1>/;
+    const imageRegex = /<img class="anime-poster" src="([\s\S]*?)"/;
+    const descRegex = /<div class="anime-desc">([\s\S]*?)</div>/;
+    const genresRegex = /<div class="gen">[\s\S]*?<\/div>/;
+    const episodeRegex = /<ul class="epi">[\s\S]*?<\/ul>/;
 
     const titleMatch = html.match(titleRegex);
     const imageMatch = html.match(imageRegex);
@@ -104,7 +104,7 @@ async function getMediaInfo(id) {
     // Extract genres
     const genres = [];
     if (genresMatch && typeof genresMatch[0] === "string") {
-      const genreLinkRegex = /<a.*?>(.*?)</g;
+      const genreLinkRegex = /<a[\s\S]*?>([\s\S]*?)</g;
       const genreMatches = genresMatch[0].matchAll(genreLinkRegex);
       for (const match of genreMatches) {
         if (match[1]) genres.push(match[1].trim());
@@ -149,10 +149,10 @@ async function getEpisodeList(id, options = {}) {
     }
 
     // Use regex to extract episode list
-    const episodeListRegex = /<ul class="epi">.*?<li>.*?<\/ul>/s;
-    const episodeItemRegex = /<li>.*?<\/li>/gs;
-    const linkRegex = /<a href=".*?\/(\d+)"/s;
-    const titleRegex = /<span class="title">(.*?)</s;
+    const episodeListRegex = /<ul class="epi">[\s\S]*?<li>[\s\S]*?<\/ul>/;
+    const episodeItemRegex = /<li>[\s\S]*?<\/li>/g;
+    const linkRegex = /<a href="[\s\S]*?\/(\d+)"/;
+    const titleRegex = /<span class="title">([\s\S]*?)</;
 
     const episodeListMatch = html.match(episodeListRegex);
     if (!episodeListMatch || typeof episodeListMatch[0] !== "string") return [];
@@ -205,7 +205,7 @@ async function getSource(episodeId) {
 
     // Use regex to extract video sources
     let sources = [];
-    const iframeRegex = /<div class="vid-player">.*?<iframe src="(.*?)"/gs;
+    const iframeRegex = /<div class="vid-player">[\s\S]*?<iframe src="([\s\S]*?)"/g;
     const iframeMatches = html.matchAll(iframeRegex);
 
     for (const match of iframeMatches) {
@@ -221,7 +221,7 @@ async function getSource(episodeId) {
 
     // Extract subtitles
     const subtitles = [];
-    const subtitleRegex = /<track kind="subtitles" src="(.*?)" srclang="(.*?)"/gs;
+    const subtitleRegex = /<track kind="subtitles" src="([\s\S]*?)" srclang="([\s\S]*?)"/g;
     const subtitleMatches = html.matchAll(subtitleRegex);
 
     for (const match of subtitleMatches) {
