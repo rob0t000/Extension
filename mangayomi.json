@@ -11,9 +11,9 @@
     "streamType": "HLS",
     "quality": "1080p",
     "type": "anime",
-    "baseUrl": "https://mangayomi.com",
-    "searchBaseUrl": "https://mangayomi.com/search?q=%s",
-    "scriptUrl": "https://raw.githubusercontent.com/yourusername/sora-modules/main/mangayomi.js",
+    "baseUrl": "https://mangayomi.com/",
+    "searchBaseUrl": "https://mangayomi.com/api/search?q=%s",
+    "scriptUrl": "https://raw.githubusercontent.com/rob0t000/Extension/refs/heads/main/mangayomi.js",
     "asyncJS": true,
     "streamAsyncJS": true,
     "softsub": true
