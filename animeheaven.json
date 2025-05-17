@@ -1,10 +1,20 @@
 {
-  "name": "AnimeHeaven",
-  "version": "1.0.0",
-  "description": "A module to scrape anime from AnimeHeaven.me",
-  "types": ["ANIME"],
-  "icon": "https://animeheaven.me/favicon.ico",
-  "script": "https://raw.githubusercontent.com/rob0t000/Extension/main/animeheaven.js",
-  "disabled": false,
-  "lastUpdate": "2025-05-17"
+    "sourceName": "AnimeHeaven",
+    "iconUrl": "https://animeheaven.me/favicon.ico",
+    "author": {
+        "name": "Hmkz0x00",
+        "icon": "",
+        "url": "https://github.com/rob0t000/Extension"
+    },
+    "version": "1.0.0",
+    "language": "English (SUB)",
+    "streamType": "HLS",
+    "quality": "1080p",
+    "type": "anime",
+    "baseUrl": "https://animeheaven.me/",
+    "searchBaseUrl": "https://animeheaven.me/search.php?s=%s",
+    "scriptUrl": "https://raw.githubusercontent.com/rob0t000/Extension/main/animeheaven.js",
+    "asyncJS": true,
+    "streamAsyncJS": true,
+    "softsub": false
 }
