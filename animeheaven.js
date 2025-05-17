@@ -106,13 +106,11 @@ async function getSource(episodeId) {
       "Origin": BASE_URL
     };
 
-    // Initial fetch to get the episode page
     const response = await fetch(episodeUrl, { headers });
     const html = await response.text();
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, "text/html");
 
-    // Try to find all video servers (if multiple iframes or server options exist)
     let sources = [];
     const iframes = doc.querySelectorAll(".vid-player iframe");
     if (iframes.length > 0) {
@@ -127,7 +125,6 @@ async function getSource(episodeId) {
         }
       });
     } else {
-      // If no iframe found, try using evaluateJS to handle dynamic content
       const dynamicIframe = await evaluateJS(episodeUrl, `
         return Array.from(document.querySelectorAll('.vid-player iframe')).map(iframe => iframe.src);
       `);
@@ -140,7 +137,6 @@ async function getSource(episodeId) {
       }
     }
 
-    // Scrape subtitles if available
     const subtitles = [];
     const subtitleLinks = doc.querySelectorAll("track[kind='subtitles']");
     subtitleLinks.forEach(track => {
