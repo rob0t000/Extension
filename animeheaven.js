@@ -39,7 +39,7 @@ async function search(query) {
       throw new Error("Fetched HTML is not a string");
     }
 
-    // Manually extract <div class="vid-box"> blocks without regex flags
+    // Manually extract <div class="vid-box"> blocks
     const results = [];
     let currentIndex = 0;
     const blockStart = '<div class="vid-box">';
@@ -67,14 +67,26 @@ async function search(query) {
       }
 
       // Extract link and ID
-      const linkRegex = new RegExp('<a href="/anime/([^"]*)"');
-      const linkMatch = vidBox.match(linkRegex);
-      const id = linkMatch ? linkMatch[1] : null;
+      let id = null;
+      const linkStart = vidBox.indexOf('<a href="/anime/');
+      if (linkStart !== -1) {
+        const hrefStart = linkStart + 16; // Length of '<a href="/anime/'
+        const hrefEnd = vidBox.indexOf('"', hrefStart);
+        if (hrefEnd !== -1) {
+          id = vidBox.substring(hrefStart, hrefEnd);
+        }
+      }
 
       // Extract image
-      const imageRegex = new RegExp('<img src="([^"]*)"(?: alt="[^"]*")?>');
-      const imageMatch = vidBox.match(imageRegex);
-      let image = imageMatch ? imageMatch[1] : "";
+      let image = "";
+      const imgStart = vidBox.indexOf('<img src="');
+      if (imgStart !== -1) {
+        const srcStart = imgStart + 10; // Length of '<img src="'
+        const srcEnd = vidBox.indexOf('"', srcStart);
+        if (srcEnd !== -1) {
+          image = vidBox.substring(srcStart, srcEnd);
+        }
+      }
 
       // If title and id are present, add to results
       if (title && id) {
@@ -119,9 +131,16 @@ async function getMediaInfo(id) {
     const title = titleStart !== -1 && titleEnd !== -1 ? html.substring(titleStart + 4, titleEnd).trim() : "";
 
     // Extract image
-    const imageRegex = new RegExp('<img class="anime-poster" src="([^"]*)"');
-    const imageMatch = html.match(imageRegex);
-    const image = imageMatch ? (imageMatch[1].startsWith("http") ? imageMatch[1] : `${BASE_URL}${imageMatch[1]}`) : "";
+    let image = "";
+    const imageStart = html.indexOf('<img class="anime-poster" src="');
+    if (imageStart !== -1) {
+      const srcStart = imageStart + 30; // Length of '<img class="anime-poster" src="'
+      const srcEnd = html.indexOf('"', srcStart);
+      if (srcEnd !== -1) {
+        image = html.substring(srcStart, srcEnd);
+        image = image.startsWith("http") ? image : `${BASE_URL}${image}`;
+      }
+    }
 
     // Extract description
     const descStart = html.indexOf('<div class="anime-desc">');
@@ -211,10 +230,20 @@ async function getEpisodeList(id, options = {}) {
       const item = episodeBlock.substring(liStart, liEnd + 5);
       currentIndex = liEnd + 5;
 
-      // Extract link and episode number
-      const linkRegex = new RegExp('<a href="[^"]*/(\\d+)"');
-      const linkMatch = item.match(linkRegex);
-      const epNumber = linkMatch ? linkMatch[1] : null;
+      // Extract episode number from link
+      let epNumber = null;
+      const hrefStart = item.indexOf('<a href="');
+      if (hrefStart !== -1) {
+        const urlStart = hrefStart + 9; // Length of '<a href="'
+        const urlEnd = item.indexOf('"', urlStart);
+        if (urlEnd !== -1) {
+          const url = item.substring(urlStart, urlEnd);
+          const lastSlash = url.lastIndexOf('/');
+          if (lastSlash !== -1) {
+            epNumber = url.substring(lastSlash + 1);
+          }
+        }
+      }
 
       // Extract title
       const titleStart = item.indexOf('<span class="title">');
