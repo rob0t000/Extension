@@ -1,12 +1,24 @@
 const baseUrl = "https://flixbaba.net";
 
 /**
+ * Helper to normalize fetchv2 output into a string of HTML.
+ */
+async function getHtml(inputUrl) {
+    const res = await fetchv2(inputUrl);
+    // If fetchv2 returned an object with .text(), call it; otherwise assume it's already the string.
+    if (res && typeof res.text === "function") {
+        return await res.text();
+    } else {
+        return res;
+    }
+}
+
+/**
  * Search results using FlixBaba HTML.
  */
 async function searchResults(keyword) {
     const searchUrl = `${baseUrl}/search?q=${encodeURIComponent(keyword)}`;
-    // fetchv2() returns the raw HTML string directly
-    const html = await fetchv2(searchUrl);
+    const html = await getHtml(searchUrl);
 
     const cards = [...html.matchAll(
         /<a[^>]*href="([^"]+)"[^>]*class="[^"]*card[^"]*"[^>]*>[\s\S]*?<img[^>]*src="([^"]+)"[^>]*>[\s\S]*?<h[^>]*>([^<]+)<\/h[^>]*>/g
@@ -25,8 +37,7 @@ async function searchResults(keyword) {
  * Extract details from movie/show detail page.
  */
 async function extractDetails(url) {
-    // fetchv2() returns page HTML
-    const html = await fetchv2(url);
+    const html = await getHtml(url);
 
     const descriptionMatch = html.match(
         /<p[^>]*class="[^"]*description[^"]*"[^>]*>([\s\S]*?)<\/p>/i
@@ -38,7 +49,9 @@ async function extractDetails(url) {
         ? descriptionMatch[1].trim()
         : "No description available.";
     const aliases = titleMatch ? titleMatch[1].trim() : "N/A";
-    const airdate = dateMatch ? dateMatch[1].trim().split("-")[0] : "Unknown";
+    const airdate = dateMatch
+        ? dateMatch[1].trim().split("-")[0]
+        : "Unknown";
 
     return JSON.stringify({ description, aliases, airdate });
 }
@@ -47,7 +60,7 @@ async function extractDetails(url) {
  * Episode list for TV shows.
  */
 async function extractEpisodes(url) {
-    const html = await fetchv2(url);
+    const html = await getHtml(url);
 
     const matches = [...html.matchAll(
         /<button[^>]*data-episode=["'](\d+)["'][^>]*>(?:EP)?\s*(\d+)<\/button>/g
@@ -68,11 +81,10 @@ async function extractStreamUrl(url) {
     try {
         let playerUrl = url;
         if (!playerUrl.endsWith("/watch")) {
-            playerUrl = playerUrl + "/watch";
+            playerUrl += "/watch";
         }
 
-        // fetchv2() returns the player page HTML
-        const html = await fetchv2(playerUrl);
+        const html = await getHtml(playerUrl);
 
         const streamMatch = html.match(
             /<source[^>]*src="([^"]+\.m3u8)"/i
