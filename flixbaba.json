@@ -1,0 +1,12 @@
+{
+  "sourceName": "FlixBaba",
+  "version": "1.0.0",
+  "language": "English (SUB)",
+  "streamType": "HLS",
+  "quality": "1080p",
+  "baseUrl": "https://flixbaba.net",
+  "searchBaseUrl": "https://flixbaba.net/search/%s",
+  "scriptUrl": "https://raw.githubusercontent.com/rob0t000/Extension/main/flixbaba.js",
+  "type": "movies",
+  "softsub": true
+}
