@@ -1,16 +1,12 @@
 const baseUrl = "https://flixbaba.net";
 
 /**
- * Helper to normalize fetchv2 output into a string of HTML.
+ * Helper to always get HTML text from fetchv2().
  */
 async function getHtml(inputUrl) {
     const res = await fetchv2(inputUrl);
-    // If fetchv2 returned an object with .text(), call it; otherwise assume it's already the string.
-    if (res && typeof res.text === "function") {
-        return await res.text();
-    } else {
-        return res;
-    }
+    // Always call .text() on the response
+    return await res.text();
 }
 
 /**
