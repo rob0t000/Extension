@@ -8,7 +8,7 @@ async function searchResults(keyword) {
   // Encode the keyword for use in a URL
   const query = encodeURIComponent(keyword.trim());
   // Example using TMDB (replace with actual FlixBaba search if available)
-  const tmdbApiKey = "YOUR_TMDB_API_KEY"; // Placeholder: an API key would be needed
+  const tmdbApiKey = c9d9bc0bd5f2232c89ea52e60839d46c; // Placeholder: an API key would be needed
   const url = `https://api.themoviedb.org/3/search/multi?api_key=${tmdbApiKey}&query=${query}`;
   const res = await fetch(url);
   const data = await res.json();
@@ -50,7 +50,7 @@ async function extractDetails(url) {
   const parts = url.replace(/\/+$/, "").split('/');
   const id = parts[4];
   const type = (parts[3] === "tv") ? "tv" : "movie";
-  const tmdbApiKey = "YOUR_TMDB_API_KEY"; // Placeholder
+  const tmdbApiKey = c9d9bc0bd5f2232c89ea52e60839d46c; // Placeholder
   let apiUrl = `https://api.themoviedb.org/3/${type}/${id}?api_key=${tmdbApiKey}`;
   const res = await fetch(apiUrl);
   const data = await res.json();
@@ -83,7 +83,7 @@ async function extractEpisodes(url) {
   const parts = url.replace(/\/+$/, "").split('/');
   const showId = parts[4];
   const showSlug = parts[5];
-  const tmdbApiKey = "YOUR_TMDB_API_KEY"; // Placeholder
+  const tmdbApiKey = c9d9bc0bd5f2232c89ea52e60839d46c; // Placeholder
   const apiUrl = `https://api.themoviedb.org/3/tv/${showId}?api_key=${tmdbApiKey}`;
   const res = await fetch(apiUrl);
   const data = await res.json();
