@@ -12,7 +12,7 @@
   "quality": "1080p",
   "baseUrl": "https://flixbaba.net",
   "searchBaseUrl": "https://flixbaba.net/search/%s",
-  "scriptUrl": "https://raw.githubusercontent.com/rob0t000/Extension/main/flixbaba/flixbaba.js",
+  "scriptUrl": "https://raw.githubusercontent.com/rob0t000/Extension/refs/heads/main/flixbaba.js",
   "type": "movies",
   "asyncJS": true,
   "softsub": true
