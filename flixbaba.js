@@ -5,7 +5,7 @@ const baseUrl = "https://flixbaba.net";
  */
 async function searchResults(keyword) {
     const searchUrl = `${baseUrl}/search?q=${encodeURIComponent(keyword)}`;
-    const res = await fetch(searchUrl);
+    const res = await fetchv2(searchUrl);
     const html = await res.text();
 
     const cards = [...html.matchAll(/<a[^>]*href="([^"]+)"[^>]*class="[^"]*card[^"]*"[^>]*>[\s\S]*?<img[^>]*src="([^"]+)"[^>]*>[\s\S]*?<h[^>]*>([^<]+)<\/h[^>]*>/g)];
@@ -23,7 +23,7 @@ async function searchResults(keyword) {
  * Extract details from movie/show detail page.
  */
 async function extractDetails(url) {
-    const res = await fetch(url);
+    const res = await fetchv2(url);
     const html = await res.text();
 
     const descriptionMatch = html.match(/<p[^>]*class="[^"]*description[^"]*"[^>]*>([\s\S]*?)<\/p>/i);
@@ -45,7 +45,7 @@ async function extractDetails(url) {
  * Episode list for TV shows (mocked — update if needed).
  */
 async function extractEpisodes(url) {
-    const res = await fetch(url);
+    const res = await fetchv2(url);
     const html = await res.text();
 
     const matches = [...html.matchAll(/<button[^>]*data-episode=["'](\d+)["'][^>]*>(?:EP)?\s*(\d+)<\/button>/g)];
@@ -67,7 +67,7 @@ async function extractStreamUrl(url) {
             playerUrl = playerUrl + "/watch";
         }
 
-        const res = await fetch(playerUrl);
+        const res = await fetchv2(playerUrl);
         const html = await res.text();
 
         const streamMatch = html.match(/<source[^>]*src="([^"]+\.m3u8)"/i);
