@@ -1,12 +1,19 @@
 {
   "sourceName": "FlixBaba",
+  "iconUrl": "",
+  "author": {
+    "name": "rob0t000",
+    "icon": "",
+    "url": "https://github.com/rob0t000"
+  },
   "version": "1.0.0",
   "language": "English (SUB)",
   "streamType": "HLS",
   "quality": "1080p",
   "baseUrl": "https://flixbaba.net",
   "searchBaseUrl": "https://flixbaba.net/search/%s",
-  "scriptUrl": "https://raw.githubusercontent.com/rob0t000/Extension/main/flixbaba.js",
+  "scriptUrl": "https://raw.githubusercontent.com/rob0t000/Extension/main/flixbaba/flixbaba.js",
   "type": "movies",
+  "asyncJS": true,
   "softsub": true
 }
