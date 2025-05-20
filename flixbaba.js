@@ -1,121 +1,83 @@
 const baseUrl = "https://flixbaba.net";
-const tmdbApiKey = "c9d9bc0bd5f2232c89ea52e60839d46c";
 
 /**
- * Search for movies and TV shows by keyword.
- * Returns JSON array of objects: { title, image, href }.
+ * Search results using FlixBaba HTML.
  */
 async function searchResults(keyword) {
-  const query = encodeURIComponent(keyword.trim());
-  const url = `https://api.themoviedb.org/3/search/multi?api_key=${tmdbApiKey}&query=${query}`;
-  const res = await fetch(url);
-  const data = await res.json();
+    const searchUrl = `${baseUrl}/search?q=${encodeURIComponent(keyword)}`;
+    const res = await fetch(searchUrl);
+    const html = await res.text();
 
-  const results = (data.results || [])
-    .map(item => {
-      const mediaType = item.media_type;
-      if (mediaType !== "tv" && mediaType !== "movie") return null;
+    const cards = [...html.matchAll(/<a[^>]*href="([^"]+)"[^>]*class="[^"]*card[^"]*"[^>]*>[\s\S]*?<img[^>]*src="([^"]+)"[^>]*>[\s\S]*?<h[^>]*>([^<]+)<\/h[^>]*>/g)];
 
-      const id = item.id;
-      const title = item.title || item.name || "";
-      const slug = title.toLowerCase()
-                        .replace(/[^a-z0-9]+/g, "-")
-                        .replace(/(^-|-$)/g, "");
+    const results = cards.map(card => ({
+        title: card[3]?.trim(),
+        image: card[2],
+        href: card[1].startsWith("http") ? card[1] : baseUrl + card[1]
+    }));
 
-      const href = `${baseUrl}/${mediaType}/${id}/${slug}`;
-      const image = item.poster_path 
-                    ? `https://image.tmdb.org/t/p/w500${item.poster_path}`
-                    : "";
-
-      return { title, image, href };
-    })
-    .filter(Boolean); // Remove nulls
-
-  return JSON.stringify(results);
+    return JSON.stringify(results);
 }
 
 /**
- * Extract detailed metadata from a movie or show page.
- * Returns JSON with fields: description, aliases, airdate.
+ * Extract details from movie/show detail page.
  */
 async function extractDetails(url) {
-  const parts = url.replace(/\/+$/, "").split('/');
-  const id = parts[4];
-  const type = (parts[3] === "tv") ? "tv" : "movie";
-  const apiUrl = `https://api.themoviedb.org/3/${type}/${id}?api_key=${tmdbApiKey}`;
+    const res = await fetch(url);
+    const html = await res.text();
 
-  const res = await fetch(apiUrl);
-  const data = await res.json();
+    const descriptionMatch = html.match(/<p[^>]*class="[^"]*description[^"]*"[^>]*>([\s\S]*?)<\/p>/i);
+    const titleMatch = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
+    const dateMatch = html.match(/Release date:<\/strong>\s*([^<\n]+)/i);
 
-  const description = data.overview || "No description available.";
-  const aliases = (data.original_title && data.original_title !== data.title)
-    ? data.original_title
-    : (data.original_name && data.original_name !== data.name
-      ? data.original_name
-      : "N/A");
-  const date = data.release_date || data.first_air_date || "";
-  const airdate = date ? date.split("-")[0] : "Unknown";
+    const description = descriptionMatch ? descriptionMatch[1].trim() : "No description available.";
+    const aliases = titleMatch ? titleMatch[1].trim() : "N/A";
+    const airdate = dateMatch ? dateMatch[1].trim().split("-")[0] : "Unknown";
 
-  return JSON.stringify({
-    description,
-    aliases,
-    airdate
-  });
+    return JSON.stringify({
+        description,
+        aliases,
+        airdate
+    });
 }
 
 /**
- * Extract episodes list for a TV show.
- * Returns JSON array of { href, number } objects.
+ * Episode list for TV shows (mocked — update if needed).
  */
 async function extractEpisodes(url) {
-  const parts = url.replace(/\/+$/, "").split('/');
-  const showId = parts[4];
-  const showSlug = parts[5];
-  const apiUrl = `https://api.themoviedb.org/3/tv/${showId}?api_key=${tmdbApiKey}`;
+    const res = await fetch(url);
+    const html = await res.text();
 
-  const res = await fetch(apiUrl);
-  const data = await res.json();
+    const matches = [...html.matchAll(/<button[^>]*data-episode=["'](\d+)["'][^>]*>(?:EP)?\s*(\d+)<\/button>/g)];
+    const episodes = matches.map(match => ({
+        href: `${url.split('?')[0]}?e=${match[2]}&p=1`,
+        number: match[2]
+    }));
 
-  const episodes = [];
-  let episodeCounter = 1;
-
-  for (const season of (data.seasons || [])) {
-    if (!Number.isInteger(season.season_number)) continue;
-
-    const seasonRes = await fetch(
-      `https://api.themoviedb.org/3/tv/${showId}/season/${season.season_number}?api_key=${tmdbApiKey}`
-    );
-    const seasonData = await seasonRes.json();
-    const epList = seasonData.episodes || [];
-
-    for (let ep of epList) {
-      const href = `${baseUrl}/tv/${showId}/${showSlug}/season/${season.season_number}?e=${ep.episode_number}&p=1`;
-      episodes.push({ href, number: episodeCounter.toString() });
-      episodeCounter++;
-    }
-  }
-
-  return JSON.stringify(episodes);
+    return JSON.stringify(episodes);
 }
 
 /**
- * Extract stream and subtitle URL from a movie or episode.
- * Returns JSON like: { stream: "HLS_URL", subtitles: "VTT_URL" }
+ * Extract video stream + subtitle URL from episode/movie player.
  */
 async function extractStreamUrl(url) {
-  let watchUrl = url;
-  if (!watchUrl.endsWith("/watch")) {
-    watchUrl += "/watch";
-  }
+    try {
+        let playerUrl = url;
+        if (!playerUrl.endsWith("/watch")) {
+            playerUrl = playerUrl + "/watch";
+        }
 
-  const res = await fetch(watchUrl);
-  const html = await res.text();
+        const res = await fetch(playerUrl);
+        const html = await res.text();
 
-  const streamMatch = html.match(/<source[^>]+src="([^"]+)"/);
-  const subMatch = html.match(/<track[^>]+kind="subtitles"[^>]+src="([^"]+)"/);
+        const streamMatch = html.match(/<source[^>]*src="([^"]+\.m3u8)"/i);
+        const subMatch = html.match(/<track[^>]*kind="subtitles"[^>]*src="([^"]+\.vtt)"/i);
 
-  const stream = streamMatch ? streamMatch[1] : "";
-  const subtitles = subMatch ? subMatch[1] : "";
+        const stream = streamMatch ? streamMatch[1] : null;
+        const subtitles = subMatch ? subMatch[1] : null;
 
-  return JSON.stringify({ stream, subtitles });
+        return JSON.stringify({ stream, subtitles });
+    } catch (e) {
+        return JSON.stringify({ stream: null, subtitles: null });
+    }
 }
