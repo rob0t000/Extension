@@ -1,11 +1,14 @@
 const baseUrl = "https://flixbaba.net";
+const defaultHeaders = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+    "Referer": baseUrl
+};
 
 /**
- * Helper to always get HTML text from fetchv2().
+ * Helper to always get HTML text from fetchv2() with browser-like headers.
  */
 async function getHtml(inputUrl) {
-    const res = await fetchv2(inputUrl);
-    // Always call .text() on the response
+    const res = await fetchv2(inputUrl, defaultHeaders);
     return await res.text();
 }
 
