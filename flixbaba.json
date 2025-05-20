@@ -1,9 +1,9 @@
 {
   "sourceName": "FlixBaba",
-  "iconUrl": "",
+  "iconUrl": "https://raw.githubusercontent.com/rob0t000/Extension/blob/main/logo.jpg",
   "author": {
     "name": "rob0t000",
-    "icon": "",
+    "icon": "https://raw.githubusercontent.com/rob0t000/Extension/blob/main/logo.jpg",
     "url": "https://github.com/rob0t000"
   },
   "version": "1.0.0",
